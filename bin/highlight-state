@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# highlight-state — manage the global mode + comment queue for the highlight plugin.
+# Usage: highlight-state <mode-on|mode-off|is-mode-on|append|list|count|clear> [args...]
+set -euo pipefail
+
+STATE_DIR="$HOME/.claude/highlight"
+STATE_FILE="$STATE_DIR/state.json"
+
+ensure_state() {
+  mkdir -p "$STATE_DIR"
+  if [[ ! -f "$STATE_FILE" ]]; then
+    echo '{"mode":"off","queue":[]}' > "$STATE_FILE"
+  fi
+}
+
+cmd="${1:-}"
+ensure_state
+
+case "$cmd" in
+  mode-on)
+    tmp=$(mktemp)
+    jq '.mode = "on"' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+    ;;
+  mode-off)
+    tmp=$(mktemp)
+    jq '.mode = "off"' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+    ;;
+  is-mode-on)
+    mode=$(jq -r '.mode' "$STATE_FILE")
+    [[ "$mode" == "on" ]] && exit 0 || exit 1
+    ;;
+  append)
+    quote="${2:-}"
+    comment="${3:-}"
+    ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    tmp=$(mktemp)
+    jq --arg q "$quote" --arg c "$comment" --arg t "$ts" \
+      '.queue += [{"quote": $q, "comment": $c, "ts": $t}]' \
+      "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+    ;;
+  list)
+    jq -c '.queue' "$STATE_FILE"
+    ;;
+  count)
+    jq '.queue | length' "$STATE_FILE"
+    ;;
+  clear)
+    tmp=$(mktemp)
+    jq '.queue = []' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+    ;;
+  *)
+    echo "Usage: highlight-state <mode-on|mode-off|is-mode-on|append <quote> <comment>|list|count|clear>" >&2
+    exit 64
+    ;;
+esac

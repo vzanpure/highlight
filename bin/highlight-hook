@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# highlight-hook — UserPromptSubmit hook entrypoint for the highlight plugin.
+# While comment-mode is on, intercepts plain (non-slash-command) messages,
+# pairs them with the current clipboard content, and records them deterministically
+# (no model involved). Blocking a hook shows Claude Code's fixed "blocked by hook"
+# chrome (file path, "Original prompt" echo) which reads as an error, not a
+# confirmation — so instead of blocking, we let the turn through with an injected
+# instruction so Claude's own (real, clean) reply becomes the confirmation.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+input=$(cat)
+user_prompt=$(printf '%s' "$input" | jq -r '.prompt // empty')
+
+# Not in comment mode: pass through untouched.
+if ! "$SCRIPT_DIR/highlight-state" is-mode-on; then
+  exit 0
+fi
+
+# Always let slash commands (including /highlight:submit, /highlight:cancel) route normally.
+if [[ "$user_prompt" == /* ]]; then
+  exit 0
+fi
+
+quote=$("$SCRIPT_DIR/highlight-clipboard" 2>/dev/null || true)
+quote="$(printf '%s' "$quote" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+if [[ -z "$quote" ]]; then
+  echo "⚠ No text detected in clipboard — select part of the response first, then type your comment." >&2
+  exit 2
+fi
+
+"$SCRIPT_DIR/highlight-state" append "$quote" "$user_prompt"
+
+context=$(cat <<EOF
+The user is in "highlight" comment mode. They just highlighted part of your previous response and left a comment on it. This has already been recorded — do not use any tool, do not answer the comment as if it were a question directed at you, do not add a greeting or any elaboration.
+
+Reply with exactly this and nothing else:
+
+"$quote"
+$user_prompt
+EOF
+)
+
+jq -n --arg ctx "$context" '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":$ctx}}'
+
+exit 0

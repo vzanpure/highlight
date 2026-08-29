@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# highlight-clipboard — print the current system clipboard text to stdout.
+# macOS: pbpaste (always present). Linux: wl-paste, xclip, xsel, whichever is found.
+# Windows/WSL: not yet supported.
+set -euo pipefail
+
+if command -v pbpaste >/dev/null 2>&1; then
+  pbpaste
+  exit 0
+fi
+
+if command -v wl-paste >/dev/null 2>&1; then
+  wl-paste --no-newline
+  exit 0
+fi
+
+if command -v xclip >/dev/null 2>&1; then
+  xclip -o -selection clipboard
+  exit 0
+fi
+
+if command -v xsel >/dev/null 2>&1; then
+  xsel --clipboard --output
+  exit 0
+fi
+
+echo "highlight: no supported clipboard tool found. Install xclip or wl-clipboard (Linux), or run on macOS." >&2
+exit 1
