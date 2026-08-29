@@ -5,5 +5,7 @@
   "author": {
     "name": "Vibhas Zanpure"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "homepage": "https://github.com/vzanpure/highlight",
+  "repository": "https://github.com/vzanpure/highlight"
 }
