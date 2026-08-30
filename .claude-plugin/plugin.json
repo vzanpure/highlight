@@ -1,7 +1,7 @@
 {
   "name": "highlight",
   "description": "Highlight parts of Claude's response, attach a comment to each, and submit them all as one precise follow-up — like a quick doc review on Claude's answers.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Vibhas Zanpure"
   },
