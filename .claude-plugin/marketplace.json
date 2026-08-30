@@ -1,0 +1,13 @@
+{
+  "name": "vzanpure",
+  "owner": {
+    "name": "Vibhas Zanpure"
+  },
+  "plugins": [
+    {
+      "name": "highlight",
+      "source": "./",
+      "description": "Highlight parts of Claude's response, attach a comment to each, and submit them all as one precise follow-up."
+    }
+  ]
+}
