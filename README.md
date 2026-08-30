@@ -1,5 +1,7 @@
 # highlight
 
+![highlight demo](demo.gif)
+
 Highlight parts of Claude's response, attach a comment to each, and submit them all as one precise follow-up — like a quick doc review on Claude's answers, instead of retyping or re-quoting things yourself.
 
 ## Usage
@@ -18,7 +20,14 @@ Run `/highlight:cancel` at any point to discard the queue without submitting.
 - Windows/WSL: not yet supported.
 - `jq` must be installed (used by the plugin's scripts).
 
-## Install (local testing)
+## Install
+
+```bash
+claude plugin marketplace add vzanpure/highlight
+claude plugin install highlight
+```
+
+For local development/testing instead:
 
 ```bash
 claude --plugin-dir /path/to/highlight
