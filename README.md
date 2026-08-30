@@ -24,7 +24,7 @@ Run `/highlight:cancel` at any point to discard the queue without submitting.
 
 ```bash
 claude plugin marketplace add vzanpure/highlight
-claude plugin install highlight
+claude plugin install highlight@vzanpure
 ```
 
 For local development/testing instead:
