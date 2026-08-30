@@ -31,6 +31,31 @@ if [[ -z "$quote" ]]; then
   exit 2
 fi
 
+# Collapse whitespace (fixes terminal line-wrap artifacts in the copied text) and
+# check it actually appears in the response being reviewed, not stale clipboard content.
+quote="$(python3 -c "
+import sys, re
+print(re.sub(r'\s+', ' ', sys.argv[1]).strip())
+" "$quote")"
+
+target="$("$SCRIPT_DIR/highlight-state" get-target)"
+
+match_count="$(python3 -c "
+import sys
+target, quote = sys.argv[1], sys.argv[2]
+print(target.count(quote) if quote else 0)
+" "$target" "$quote")"
+
+if [[ "$match_count" -eq 0 ]]; then
+  echo "⚠ That text doesn't appear in my last response — select part of the actual response, then type your comment." >&2
+  exit 2
+fi
+
+if [[ "$match_count" -gt 1 ]]; then
+  echo "⚠ That selection appears more than once in my last response — select a longer, more specific phrase, then type your comment." >&2
+  exit 2
+fi
+
 "$SCRIPT_DIR/highlight-state" append "$quote" "$user_prompt"
 
 context=$(cat <<EOF

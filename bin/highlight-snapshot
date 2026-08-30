@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""highlight-snapshot — capture Claude's last real response into state.json.
+
+Run once when /highlight:comment starts a session, so every comment queued
+afterward can be validated against a fixed snapshot rather than a moving
+target (our own confirmation replies also get appended to the transcript
+once comment mode is on).
+"""
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+
+STATE_BIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "highlight-state")
+
+
+def find_latest_transcript():
+    paths = glob.glob(os.path.expanduser("~/.claude/projects/*/*.jsonl"))
+    if not paths:
+        return None
+    return max(paths, key=os.path.getmtime)
+
+
+def load_entries(path):
+    entries = []
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
+
+
+def user_string_content(entry):
+    """Return the entry's message content if it's a real (string) user turn, else None."""
+    if entry.get("type") != "user":
+        return None
+    content = entry.get("message", {}).get("content")
+    return content if isinstance(content, str) else None
+
+
+def assistant_text(entry):
+    """Concatenate this entry's assistant text blocks, or '' if none."""
+    if entry.get("type") != "assistant":
+        return ""
+    blocks = entry.get("message", {}).get("content") or []
+    return "".join(b.get("text", "") for b in blocks if isinstance(b, dict) and b.get("type") == "text")
+
+
+def extract_last_response(entries):
+    # Skip the most recent user-string entry (the /highlight:comment invocation itself),
+    # then collect assistant text back to the next user-string entry.
+    last_user_idx = None
+    for i in range(len(entries) - 1, -1, -1):
+        if user_string_content(entries[i]) is not None:
+            last_user_idx = i
+            break
+    if last_user_idx is None:
+        return ""
+
+    prev_user_idx = None
+    for i in range(last_user_idx - 1, -1, -1):
+        if user_string_content(entries[i]) is not None:
+            prev_user_idx = i
+            break
+
+    start = prev_user_idx + 1 if prev_user_idx is not None else 0
+    chunks = [assistant_text(entries[i]) for i in range(start, last_user_idx)]
+    return "".join(chunks)
+
+
+def normalize(text):
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"__([^_]+)__", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def main():
+    transcript = find_latest_transcript()
+    target = ""
+    if transcript:
+        entries = load_entries(transcript)
+        target = normalize(extract_last_response(entries))
+    subprocess.run([STATE_BIN, "set-target", target], check=True)
+
+
+if __name__ == "__main__":
+    main()
